@@ -1,80 +1,86 @@
-package com.stackandroid.speechtotext;
-import java.util.ArrayList;
-import java.util.Locale;
+package com.example.android.spellcheck;
 
 import android.app.Activity;
-import android.content.ActivityNotFoundException;
-import android.content.Intent;
+import android.content.Context;
 import android.os.Bundle;
-import android.speech.RecognizerIntent;
 import android.view.View;
-import android.widget.ImageButton;
+import android.view.textservice.TextInfo;
+import android.view.textservice.TextServicesManager;
+
+import android.widget.Button;
+import android.widget.EditText;
+
+import android.view.textservice.SentenceSuggestionsInfo;
+import android.view.textservice.SpellCheckerSession;
+import android.view.textservice.SpellCheckerSession.SpellCheckerSessionListener;
+import android.view.textservice.SuggestionsInfo;
+
 import android.widget.TextView;
 import android.widget.Toast;
 
-public class MainActivity extends Activity {
+public class MainActivity extends Activity implements SpellCheckerSessionListener  {
+    Button b1;
+    TextView tv1;
+    EditText ed1;
+    private SpellCheckerSession mScs;
 
-	private final int SPEECH_RECOGNITION_CODE = 1;
+    @Override
+    protected void onCreate(Bundle savedInstanceState) {
+        super.onCreate(savedInstanceState);
+        setContentView(R.layout.activity_main);
 
-	private TextView txtOutput;
-	private ImageButton btnMicrophone;
+        b1=(Button)findViewById(R.id.button);
+        tv1=(TextView)findViewById(R.id.textView3);
 
+        ed1=(EditText)findViewById(R.id.editText);
+        b1.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                Toast.makeText(getApplicationContext(),
+                        ed1.getText().toString(),Toast.LENGTH_SHORT).show();
+                mScs.getSuggestions(new TextInfo(ed1.getText().toString()), 3);
+            }
+        });
+    }
 
-	@Override
-	protected void onCreate(Bundle savedInstanceState) {
-		super.onCreate(savedInstanceState);
-		setContentView(R.layout.activity_main);
+    public void onResume() {
+        super.onResume();
+        final TextServicesManager tsm = (TextServicesManager)
+                getSystemService(Context.TEXT_SERVICES_MANAGER_SERVICE);
+        mScs = tsm.newSpellCheckerSession(null, null, this, true);
+    }
 
-		txtOutput = (TextView) findViewById(R.id.txt_output);
-		btnMicrophone = (ImageButton) findViewById(R.id.btn_mic);
+    public void onPause() {
+        super.onPause();
+        if (mScs != null) {
+            mScs.close();
+        }
+    }
 
-		btnMicrophone.setOnClickListener(new View.OnClickListener() {
+    public void onGetSuggestions(final SuggestionsInfo[] arg0) {
+        final StringBuilder sb = new StringBuilder();
 
-			@Override
-			public void onClick(View v) {
-				startSpeechToText();
-			}
-		});
-	}
+        for (int i = 0; i < arg0.length; ++i) {
+            // Returned suggestions are contained in SuggestionsInfo
+            final int len = arg0[i].getSuggestionsCount();
+            sb.append('\n');
 
-	/**
-	 * Start speech to text intent. This opens up Google Speech Recognition API dialog box to listen the speech input.
-	 * */
-	 private void startSpeechToText() {
-		Intent intent = new Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH);
-		intent.putExtra(RecognizerIntent.EXTRA_LANGUAGE, Locale.getDefault());
-		intent.putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL,
-				RecognizerIntent.LANGUAGE_MODEL_FREE_FORM);
-		intent.putExtra(RecognizerIntent.EXTRA_PROMPT,
-				"Speak something...");
-		try {
-			startActivityForResult(intent, SPEECH_RECOGNITION_CODE);
-		} catch (ActivityNotFoundException a) {
-			Toast.makeText(getApplicationContext(),
-					"Sorry! Speech recognition is not supported in this device.",
-					Toast.LENGTH_SHORT).show();
-		}
-	 }
+            for (int j = 0; j < len; ++j) {
+                sb.append("," + arg0[i].getSuggestionAt(j));
+            }
 
-	 /**
-	  * Callback for speech recognition activity
-	  * */
-	 @Override
-	 protected void onActivityResult(int requestCode, int resultCode, Intent data) {
-		 super.onActivityResult(requestCode, resultCode, data);
+            sb.append(" (" + len + ")");
+        }
 
-		 switch (requestCode) {
-		 case SPEECH_RECOGNITION_CODE: {
-			 if (resultCode == RESULT_OK && null != data) {
+        runOnUiThread(new Runnable() {
+            public void run() {
+                tv1.append(sb.toString());
+            }
+        });
+    }
 
-				 ArrayList<String> result = data
-						 .getStringArrayListExtra(RecognizerIntent.EXTRA_RESULTS);
-				 String text = result.get(0);
-				 txtOutput.setText(text);
-			 }
-			 break;
-		 }
-
-		 }
-	 }
+    @Override
+    public void onGetSentenceSuggestions(SentenceSuggestionsInfo[] arg0) {
+        // TODO Auto-generated method stub
+    }
 }
